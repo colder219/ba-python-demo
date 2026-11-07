@@ -1,0 +1,115 @@
+name: Build and push service image
+on:
+  workflow_dispatch:
+    inputs:
+      service:
+        description: Service directory (contains Dockerfile)
+        required: true
+        type: string
+      image_tag:
+        description: Image tag supplied by ba
+        required: true
+        type: string
+      repository:
+        description: Source repository URL from .ci.toml
+        required: false
+        type: string
+      code_type:
+        description: golang or python
+        required: true
+        type: string
+      version:
+        description: Language runtime version
+        required: true
+        type: string
+      path:
+        description: Source directory in the checkout
+        required: true
+        type: string
+      build_command:
+        description: Compile/build command
+        required: false
+        type: string
+      start_command:
+        description: Container startup command
+        required: true
+        type: string
+      image_repository:
+        description: Full image repository path
+        required: true
+        type: string
+permissions:
+  contents: read
+  packages: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      SOURCE_PATH: ${{ inputs.path }}
+      CODE_TYPE: ${{ inputs.code_type }}
+      VERSION: ${{ inputs.version }}
+      BUILD_COMMAND: ${{ inputs.build_command }}
+      START_COMMAND: ${{ inputs.start_command }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate runtime image definition
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$SOURCE_PATH"
+          cat > .ba-entrypoint.sh <<'ENTRYPOINT'
+          #!/bin/sh
+          set -e
+          exec sh -lc "$START_COMMAND"
+          ENTRYPOINT
+          chmod +x .ba-entrypoint.sh
+          case "$CODE_TYPE" in
+            golang)
+              cat > Dockerfile.ba <<'DOCKERFILE'
+          ARG RUNTIME_VERSION
+          FROM golang:${RUNTIME_VERSION}-alpine AS build
+          WORKDIR /src
+          COPY . .
+          ARG BUILD_COMMAND
+          RUN sh -lc "$BUILD_COMMAND"
+          FROM alpine:3.21
+          WORKDIR /app
+          COPY --from=build /src/app /app/app
+          COPY .ba-entrypoint.sh /app/.ba-entrypoint.sh
+          ARG START_COMMAND
+          ENV START_COMMAND=$START_COMMAND
+          ENTRYPOINT ["sh", "/app/.ba-entrypoint.sh"]
+          DOCKERFILE
+              ;;
+            python)
+              cat > Dockerfile.ba <<'DOCKERFILE'
+          ARG RUNTIME_VERSION
+          FROM python:${RUNTIME_VERSION}-slim
+          WORKDIR /app
+          COPY . .
+          RUN if [ -f requirements.txt ]; then pip install --no-cache-dir -r requirements.txt; fi
+          ARG BUILD_COMMAND
+          RUN if [ -n "$BUILD_COMMAND" ]; then sh -lc "$BUILD_COMMAND"; fi
+          COPY .ba-entrypoint.sh /app/.ba-entrypoint.sh
+          ARG START_COMMAND
+          ENV START_COMMAND=$START_COMMAND
+          ENTRYPOINT ["sh", "/app/.ba-entrypoint.sh"]
+          DOCKERFILE
+              ;;
+            *) echo "Unsupported code type: $CODE_TYPE" >&2; exit 1 ;;
+          esac
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./${{ inputs.path }}
+          file: ./${{ inputs.path }}/Dockerfile.ba
+          push: true
+          tags: ${{ inputs.image_repository }}:${{ inputs.image_tag }}
+          build-args: |
+            RUNTIME_VERSION=${{ inputs.version }}
+            BUILD_COMMAND=${{ inputs.build_command }}
+            START_COMMAND=${{ inputs.start_command }}

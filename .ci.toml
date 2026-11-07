@@ -1,0 +1,25 @@
+repository = "https://github.com/colder219/ba-python-demo"
+
+[runtime]
+type = "python"
+version = "3.12"
+path = "."
+build_command = ""
+start_command = "python app.py"
+
+[github]
+workflow = "build-image.yml"
+
+[image]
+repository = "ghcr.io/colder219/ba-python-demo"
+
+[kubernetes]
+namespace = "ba-test"
+deployment = "ba-python-demo"
+container = "ba-python-demo"
+selector = { app = "ba-python-demo" }
+
+[kubernetes.service]
+name = "ba-python-demo"
+port = 80
+target_port = 8080
