@@ -7,11 +7,9 @@ path = "."
 build_command = ""
 start_command = "python app.py"
 
-[github]
-workflow = "build-image.yml"
-
 [image]
-repository = "ghcr.io/colder219/ba-python-demo"
+registry = "ghcr.io"
+name = "colder219/ba-python-demo"
 
 [kubernetes]
 namespace = "ba-test"
