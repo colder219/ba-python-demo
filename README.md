@@ -24,4 +24,4 @@ ba build ba-python-demo
 ba pub ba-python-demo
 ```
 
-The `.ci.toml` is configured for this standalone repository. `ba build ba-python-demo` uses local Docker to build `ghcr.io/colder219/ba-python-demo:<git-sha>`; add `--tag local` to use the `local` tag. Build does not push to the registry. `ba pub` requires the `ba-test` namespace and Deployment to exist or be provisioned in the target cluster. The config does not define an Ingress or HPA.
+The `.ci.toml` is configured for this standalone repository with `runtime.type = "auto"`. `ba build ba-python-demo` detects Go or Python from the source files and uses the matching local Docker build flow. This service is detected as Python from `app.py` and `requirements.txt`. It builds `dhi.io/colder219/ba-python-demo:<git-sha>`; add `--tag local` to use the `local` tag. Build does not push to the registry. `ba pub` requires the `ba-test` namespace and Deployment to exist or be provisioned in the target cluster. The config does not define an Ingress or HPA.

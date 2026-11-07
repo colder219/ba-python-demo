@@ -1,14 +1,15 @@
 repository = "https://github.com/colder219/ba-python-demo"
 
 [runtime]
-type = "python"
+type = "auto"
 version = "3.12"
+base_image = "python:3.12-slim"
 path = "."
 build_command = ""
 start_command = "python app.py"
 
 [image]
-registry = "ghcr.io"
+registry = "dhi.io"
 name = "colder219/ba-python-demo"
 
 [kubernetes]
